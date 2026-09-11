@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface PaymentRepository extends JpaRepository<PaymentReceipt, UUID> {
+public interface PaymentReceiptRepository extends JpaRepository<PaymentReceipt, UUID> {
 
     Optional<PaymentReceipt> findByOrderId(String orderId);
 
