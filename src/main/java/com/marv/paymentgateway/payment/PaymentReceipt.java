@@ -12,7 +12,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "payment_receipts")
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentReceipt {
 
@@ -67,4 +66,24 @@ public class PaymentReceipt {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+
+    public static PaymentReceipt createPending(
+            String orderId,
+            String customerId,
+            Long amount
+    ) {
+        PaymentReceipt payment = new PaymentReceipt();
+
+        OffsetDateTime now = OffsetDateTime.now();
+
+        payment.orderId = orderId;
+        payment.customerId = customerId;
+        payment.amount = amount;
+        payment.currency = "USD";
+        payment.status = PaymentStatus.PENDING;
+        payment.createdAt = now;
+        payment.updatedAt = now;
+
+        return payment;
+    }
 }
