@@ -14,5 +14,15 @@ services:
     volumes:
       - ficmart-payment-data:/var/lib/postgresql/data
 
+  adminer:
+    image: adminer
+    container_name: ficmart-payment-adminer
+
+    ports:
+      - "8081:8080"
+
+    depends_on:
+      - payment-db
+
 volumes:
   ficmart-payment-data:
