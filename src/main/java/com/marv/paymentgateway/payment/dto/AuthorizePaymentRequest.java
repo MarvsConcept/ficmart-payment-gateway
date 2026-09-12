@@ -15,6 +15,9 @@ public record AuthorizePaymentRequest(
         Long amount,
 
         @NotBlank
+        String cardNumber,
+
+        @NotBlank
         String cvv,
 
         @Min(1)
