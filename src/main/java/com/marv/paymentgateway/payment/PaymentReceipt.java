@@ -70,8 +70,8 @@ public class PaymentReceipt {
     public static PaymentReceipt createPending(
             String orderId,
             String customerId,
-            Long amount
-    ) {
+            Long amount) {
+
         PaymentReceipt payment = new PaymentReceipt();
 
         OffsetDateTime now = OffsetDateTime.now();
@@ -85,5 +85,19 @@ public class PaymentReceipt {
         payment.updatedAt = now;
 
         return payment;
+    }
+
+    public void markAuthorized(
+            String authorizationId,
+            OffsetDateTime authorizedAt) {
+
+        if (status != PaymentStatus.PENDING) {
+            throw new IllegalStateException("Only pending payments can be authorized");
+        }
+
+        this.authorizationId = authorizationId;
+        this.authorizedAt = authorizedAt;
+        this.status = PaymentStatus.AUTHORIZED;
+        this.updatedAt = OffsetDateTime.now();
     }
 }
