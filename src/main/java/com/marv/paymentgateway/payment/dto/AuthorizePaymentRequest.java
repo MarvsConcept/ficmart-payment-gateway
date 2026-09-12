@@ -20,12 +20,14 @@ public record AuthorizePaymentRequest(
         @NotBlank
         String cvv,
 
+        @NotNull
         @Min(1)
         @Max(12)
-        int expiryMonth,
+        Integer expiryMonth,
 
+        @NotNull
         @Min(2026)
-        int expiryYear
+        Integer expiryYear
 
 ) {
 }
