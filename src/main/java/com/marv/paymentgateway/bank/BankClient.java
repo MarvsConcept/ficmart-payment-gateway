@@ -61,4 +61,17 @@ public class BankClient {
                 .retrieve()
                 .body(BankVoidResponse.class);
     }
+
+    public BankRefundResponse refund(
+            BankRefundRequest request,
+            String idempotencyKey) {
+
+        return restClient.post()
+                .uri("api/v1/refunds")
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(BankRefundResponse.class);
+    }
 }

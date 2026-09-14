@@ -1,9 +1,6 @@
 package com.marv.paymentgateway.payment;
 
-import com.marv.paymentgateway.payment.dto.AuthorizePaymentRequest;
-import com.marv.paymentgateway.payment.dto.AuthorizePaymentResponse;
-import com.marv.paymentgateway.payment.dto.CapturePaymentResponse;
-import com.marv.paymentgateway.payment.dto.VoidPaymentResponse;
+import com.marv.paymentgateway.payment.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -59,6 +56,33 @@ public class PaymentController {
                 .status(HttpStatus.OK)
                 .body(response);
 
+    }
+
+    @PostMapping("/{paymentReference}/refund")
+    public ResponseEntity<RefundPaymentResponse> refund(
+            @PathVariable UUID paymentReference) {
+
+        PaymentReceipt payment = paymentService.refundPayment(paymentReference);
+
+        RefundPaymentResponse response = toRefundPaymentResponse(payment);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
+    }
+
+    private RefundPaymentResponse toRefundPaymentResponse (
+            PaymentReceipt payment) {
+
+        return new RefundPaymentResponse(
+
+                payment.getPaymentReference(),
+                payment.getOrderId(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getStatus().name(),
+                payment.getRefundedAt()
+        );
     }
 
     private VoidPaymentResponse toVoidPaymentResponse (

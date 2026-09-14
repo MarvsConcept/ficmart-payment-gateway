@@ -125,6 +125,18 @@ public class PaymentReceipt {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    public void markRefunded(
+            String refundId,
+            OffsetDateTime refundedAt) {
+
+        ensureCanBeRefunded();
+
+        this.refundId = refundId;
+        this.refundedAt = refundedAt;
+        this.status = PaymentStatus.REFUNDED;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public void ensureCanBeCaptured() {
         if (status != PaymentStatus.AUTHORIZED) {
             throw new IllegalStateException("Only authorized payments can be captured");
@@ -139,4 +151,9 @@ public class PaymentReceipt {
     }
 
 
+    public void ensureCanBeRefunded() {
+        if (status != PaymentStatus.CAPTURED) {
+            throw new IllegalStateException("Only captured payments can be refunded");
+        }
+    }
 }

@@ -98,6 +98,34 @@ public class PaymentService {
         return paymentReceiptRepository.save(payment);
     }
 
+    public PaymentReceipt refundPayment(UUID paymentReference) {
+
+        // find payment in the db with reference
+        PaymentReceipt payment = paymentReceiptRepository.findById(paymentReference)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + paymentReference));
+
+        // ensure payment is captured and can be refunded
+        payment.ensureCanBeRefunded();
+
+        // Build the bank refund request
+        BankRefundRequest bankRequest = new BankRefundRequest(
+                payment.getAmount(), payment.getCaptureId());
+
+        // Generate idempotency key
+        String bankIdempotencyKey = "refund:" + payment.getPaymentReference();
+
+        // Call the bank
+        BankRefundResponse bankResponse = bankClient.refund(
+                bankRequest, bankIdempotencyKey);
+
+        // mark refunded
+        payment.markRefunded(bankResponse.refundId(), bankResponse.refundedAt());
+
+        return paymentReceiptRepository.save(payment);
+
+    }
+
+
     private BankAuthorizationRequest toBankAuthorizationRequest(
             AuthorizePaymentRequest request) {
 
