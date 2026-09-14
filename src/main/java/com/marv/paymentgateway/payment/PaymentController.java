@@ -2,14 +2,15 @@ package com.marv.paymentgateway.payment;
 
 import com.marv.paymentgateway.payment.dto.AuthorizePaymentRequest;
 import com.marv.paymentgateway.payment.dto.AuthorizePaymentResponse;
+import com.marv.paymentgateway.payment.dto.CapturePaymentResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -31,6 +32,32 @@ public class PaymentController {
                 .body(response);
     }
 
+    @PostMapping("/{paymentReference}/capture")
+    public ResponseEntity<CapturePaymentResponse> capture(
+            @PathVariable UUID paymentReference) {
+
+        PaymentReceipt payment = paymentService.capturePayment(paymentReference);
+
+        CapturePaymentResponse response = toCapturePaymentResponse(payment);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
+
+    }
+
+    private  CapturePaymentResponse toCapturePaymentResponse(
+            PaymentReceipt payment) {
+
+        return new CapturePaymentResponse(
+                payment.getPaymentReference(),
+                payment.getOrderId(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getStatus().name(),
+                payment.getCapturedAt()
+        );
+    }
 
     private AuthorizePaymentResponse toAuthorizePaymentResponse(
             PaymentReceipt payment) {

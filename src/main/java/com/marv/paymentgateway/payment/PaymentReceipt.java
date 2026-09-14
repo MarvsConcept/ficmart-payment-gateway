@@ -100,4 +100,24 @@ public class PaymentReceipt {
         this.status = PaymentStatus.AUTHORIZED;
         this.updatedAt = OffsetDateTime.now();
     }
+
+    public void markCaptured(
+            String captureId,
+            OffsetDateTime capturedAt) {
+
+        ensureCanBeCaptured();
+
+        this.captureId = captureId;
+        this.capturedAt = capturedAt;
+        this.status = PaymentStatus.CAPTURED;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+
+    public void ensureCanBeCaptured() {
+        if (status != PaymentStatus.AUTHORIZED) {
+            throw new IllegalStateException("Only authorized payments can be captured");
+        }
+    }
+
 }

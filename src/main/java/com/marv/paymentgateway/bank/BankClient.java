@@ -2,6 +2,8 @@ package com.marv.paymentgateway.bank;
 
 import com.marv.paymentgateway.bank.dto.BankAuthorizationRequest;
 import com.marv.paymentgateway.bank.dto.BankAuthorizationResponse;
+import com.marv.paymentgateway.bank.dto.BankCaptureRequest;
+import com.marv.paymentgateway.bank.dto.BankCaptureResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -35,5 +37,18 @@ public class BankClient {
                 .retrieve()
                 .body(BankAuthorizationResponse.class);
 
+    }
+
+    public BankCaptureResponse capture(
+            BankCaptureRequest request,
+            String idempotencyKey) {
+
+        return restClient.post()
+                .uri("api/v1/captures")
+                .header("Idempotency-key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(BankCaptureResponse.class);
     }
 }
