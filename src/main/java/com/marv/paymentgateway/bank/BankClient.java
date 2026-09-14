@@ -1,9 +1,6 @@
 package com.marv.paymentgateway.bank;
 
-import com.marv.paymentgateway.bank.dto.BankAuthorizationRequest;
-import com.marv.paymentgateway.bank.dto.BankAuthorizationResponse;
-import com.marv.paymentgateway.bank.dto.BankCaptureRequest;
-import com.marv.paymentgateway.bank.dto.BankCaptureResponse;
+import com.marv.paymentgateway.bank.dto.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -31,7 +28,7 @@ public class BankClient {
         // else the bank could treat the retry as a new authorization
         return restClient.post()
                 .uri("/api/v1/authorizations")
-                .header("Idempotency-key", idempotencyKey)
+                .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
@@ -44,11 +41,24 @@ public class BankClient {
             String idempotencyKey) {
 
         return restClient.post()
-                .uri("api/v1/captures")
-                .header("Idempotency-key", idempotencyKey)
+                .uri("/api/v1/captures")
+                .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
                 .body(BankCaptureResponse.class);
+    }
+
+    public BankVoidResponse voidAuthorization(
+            BankVoidRequest request,
+            String idempotencyKey) {
+
+        return restClient.post()
+                .uri("api/v1/voids")
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(BankVoidResponse.class);
     }
 }

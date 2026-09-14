@@ -113,11 +113,30 @@ public class PaymentReceipt {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    public void markVoided(
+            String voidId,
+            OffsetDateTime voidedAt) {
+
+        ensureCanBeVoided();
+
+        this.voidId = voidId;
+        this.voidedAt = voidedAt;
+        this.status = PaymentStatus.VOIDED;
+        this.updatedAt = OffsetDateTime.now();
+    }
 
     public void ensureCanBeCaptured() {
         if (status != PaymentStatus.AUTHORIZED) {
             throw new IllegalStateException("Only authorized payments can be captured");
         }
     }
+
+    public void ensureCanBeVoided() {
+
+        if (status != PaymentStatus.AUTHORIZED) {
+            throw new IllegalStateException("Only pending payments can be voided");
+        }
+    }
+
 
 }

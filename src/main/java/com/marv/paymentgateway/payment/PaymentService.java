@@ -1,10 +1,7 @@
 package com.marv.paymentgateway.payment;
 
 import com.marv.paymentgateway.bank.BankClient;
-import com.marv.paymentgateway.bank.dto.BankAuthorizationRequest;
-import com.marv.paymentgateway.bank.dto.BankAuthorizationResponse;
-import com.marv.paymentgateway.bank.dto.BankCaptureRequest;
-import com.marv.paymentgateway.bank.dto.BankCaptureResponse;
+import com.marv.paymentgateway.bank.dto.*;
 import com.marv.paymentgateway.payment.dto.AuthorizePaymentRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -74,6 +71,32 @@ public class PaymentService {
         return paymentReceiptRepository.save(payment);
     }
 
+    public PaymentReceipt voidPayment(UUID paymentReference) {
+
+        // find payment in the db with reference
+        PaymentReceipt payment = paymentReceiptRepository.findById(paymentReference)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + paymentReference));
+
+        // reject an invalid transition before calling the bank
+        payment.ensureCanBeVoided();
+
+        // Build the bank capture request
+        BankVoidRequest bankRequest = new BankVoidRequest(
+                payment.getAuthorizationId()
+        );
+
+        // Generate idempotency key
+        String bankIdempotencyKey = "void:" + payment.getPaymentReference();
+
+        // Call the bank
+        BankVoidResponse bankResponse =
+                bankClient.voidAuthorization(bankRequest, bankIdempotencyKey);
+
+        // call markVoided
+        payment.markVoided(bankResponse.voidId(), bankResponse.voidedAt());
+
+        return paymentReceiptRepository.save(payment);
+    }
 
     private BankAuthorizationRequest toBankAuthorizationRequest(
             AuthorizePaymentRequest request) {
