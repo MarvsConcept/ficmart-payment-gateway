@@ -1,5 +1,6 @@
 package com.marv.paymentgateway.payment;
 
+import com.marv.paymentgateway.payment.exception.InvalidPaymentStateException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -92,7 +93,7 @@ public class PaymentReceipt {
             OffsetDateTime authorizedAt) {
 
         if (status != PaymentStatus.PENDING) {
-            throw new IllegalStateException("Only pending payments can be authorized");
+            throw new InvalidPaymentStateException("Only pending payments can be authorized");
         }
 
         this.authorizationId = authorizationId;
@@ -139,21 +140,21 @@ public class PaymentReceipt {
 
     public void ensureCanBeCaptured() {
         if (status != PaymentStatus.AUTHORIZED) {
-            throw new IllegalStateException("Only authorized payments can be captured");
+            throw new InvalidPaymentStateException("Only authorized payments can be captured");
         }
     }
 
     public void ensureCanBeVoided() {
 
         if (status != PaymentStatus.AUTHORIZED) {
-            throw new IllegalStateException("Only pending payments can be voided");
+            throw new InvalidPaymentStateException("Only pending payments can be voided");
         }
     }
 
 
     public void ensureCanBeRefunded() {
         if (status != PaymentStatus.CAPTURED) {
-            throw new IllegalStateException("Only captured payments can be refunded");
+            throw new InvalidPaymentStateException("Only captured payments can be refunded");
         }
     }
 }

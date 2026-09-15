@@ -3,6 +3,7 @@ package com.marv.paymentgateway.payment;
 import com.marv.paymentgateway.bank.BankClient;
 import com.marv.paymentgateway.bank.dto.*;
 import com.marv.paymentgateway.payment.dto.AuthorizePaymentRequest;
+import com.marv.paymentgateway.payment.exception.PaymentNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -46,7 +47,7 @@ public class PaymentService {
 
         // find payment in the db with reference
         PaymentReceipt payment = paymentReceiptRepository.findById(paymentReference).
-                orElseThrow(() -> new IllegalArgumentException("Payment not found: " + paymentReference));
+                orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + paymentReference));
 
 
         // reject an invalid capture before calling the bank
@@ -75,7 +76,7 @@ public class PaymentService {
 
         // find payment in the db with reference
         PaymentReceipt payment = paymentReceiptRepository.findById(paymentReference)
-                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + paymentReference));
+                .orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + paymentReference));
 
         // reject an invalid transition before calling the bank
         payment.ensureCanBeVoided();
@@ -102,7 +103,7 @@ public class PaymentService {
 
         // find payment in the db with reference
         PaymentReceipt payment = paymentReceiptRepository.findById(paymentReference)
-                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + paymentReference));
+                .orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + paymentReference));
 
         // ensure payment is captured and can be refunded
         payment.ensureCanBeRefunded();
