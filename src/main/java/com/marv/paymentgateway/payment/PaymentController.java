@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -69,6 +70,54 @@ public class PaymentController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(response);
+    }
+
+    @GetMapping("/orders/{orderId}")
+    public ResponseEntity<PaymentResponse> getPaymentByorderId(
+            @PathVariable String orderId) {
+
+        PaymentReceipt payment = paymentService.getPaymentByOrderId(orderId);
+
+        PaymentResponse response = toPaymentResponse(payment);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
+    }
+
+    @GetMapping("/customers/{customerId}")
+    public ResponseEntity<List<PaymentResponse>> getCustomerPaymentHistory(
+            @PathVariable String customerId) {
+
+        List<PaymentReceipt> payments = paymentService.getCustomerPaymentHistory(customerId);
+
+        List<PaymentResponse> response = payments.stream()
+                .map(this::toPaymentResponse)
+                .toList();
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
+    }
+
+    private PaymentResponse toPaymentResponse(
+            PaymentReceipt payment) {
+
+        return new PaymentResponse(
+
+                payment.getPaymentReference(),
+                payment.getOrderId(),
+                payment.getCustomerId(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getStatus().name(),
+
+                payment.getCreatedAt(),
+                payment.getAuthorizedAt(),
+                payment.getCapturedAt(),
+                payment.getVoidedAt(),
+                payment.getRefundedAt()
+        );
     }
 
     private RefundPaymentResponse toRefundPaymentResponse (
