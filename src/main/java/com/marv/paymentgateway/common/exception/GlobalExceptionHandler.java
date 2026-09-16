@@ -1,6 +1,7 @@
 package com.marv.paymentgateway.common.exception;
 
 import com.marv.paymentgateway.common.dto.ApiErrorResponse;
+import com.marv.paymentgateway.idempotency.exception.IdempotencyConflictException;
 import com.marv.paymentgateway.payment.exception.InvalidPaymentStateException;
 import com.marv.paymentgateway.payment.exception.PaymentNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -33,6 +34,20 @@ public class GlobalExceptionHandler {
 
         ApiErrorResponse response = new ApiErrorResponse(
                 "invalid_payment_state",
+                ex.getMessage(),
+                OffsetDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleIdempotencyConflictException(IdempotencyConflictException ex) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                "idempotency_conflict",
                 ex.getMessage(),
                 OffsetDateTime.now()
         );

@@ -148,7 +148,8 @@ public class PaymentService {
 
     public List<PaymentReceipt> getCustomerPaymentHistory(String customerId) {
 
-        return paymentReceiptRepository.findAllByCustomerIdOrderByCreatedAtDesc(customerId);
+        return paymentReceiptRepository.
+                findAllByCustomerIdOrderByCreatedAtDesc(customerId);
     }
 
 }
