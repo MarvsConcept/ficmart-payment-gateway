@@ -4,12 +4,15 @@ import com.marv.paymentgateway.idempotency.exception.IdempotencyConflictExceptio
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 @RequiredArgsConstructor
 public class IdempotencyService {
 
     private final IdempotencyRecordRepository repository;
+    private final JsonMapper jsonMapper;
 
     public IdempotencyRecord claim(
             String key,
@@ -53,4 +56,37 @@ public class IdempotencyService {
 
         return record;
     }
+
+    public void complete(
+            IdempotencyRecord record,
+            Object response,
+            int httpStatus) {
+
+        try {
+            String responseBody = jsonMapper.writeValueAsString(response);
+
+            record.complete(responseBody, httpStatus);
+            repository.save(record);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException(
+                    "Failed to store idempotent response",
+                    ex);
+        }
+    }
+
+    public <T> T replay(
+            IdempotencyRecord record,
+            Class<T> responseType) {
+
+        try {
+            return jsonMapper.readValue(
+                    record.getResponseBody(),
+                    responseType);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException(
+                    "Failed to replay idempotent response",
+                    ex);
+        }
+    }
+
 }

@@ -13,12 +13,16 @@ public class RequestFingerprintService {
 
     public String forAuthorization(AuthorizePaymentRequest request) {
 
+        String cardNumber = request.cardNumber();
+        String lastFour = cardNumber.length() <= 4
+                ? cardNumber
+                :cardNumber.substring(cardNumber.length() - 4);
+
         String canonicalRequest = String.join("|",
                 request.orderId(),
                 request.customerId(),
                 request.amount().toString(),
-                request.cardNumber(),
-                request.cvv(),
+                lastFour,
                 request.expiryMonth().toString(),
                 request.expiryYear().toString());
 

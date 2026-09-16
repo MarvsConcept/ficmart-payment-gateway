@@ -1,5 +1,6 @@
 package com.marv.paymentgateway.payment;
 
+import com.marv.paymentgateway.idempotency.*;
 import com.marv.paymentgateway.payment.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,14 +18,43 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final IdempotencyService idempotencyService;
+    private final RequestFingerprintService requestFingerprintService;
 
     @PostMapping("/authorize")
     public ResponseEntity<AuthorizePaymentResponse> authorize(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody AuthorizePaymentRequest request) {
+
+        String requestHash = requestFingerprintService.forAuthorization(request);
+
+        IdempotencyRecord idempotencyRecord = idempotencyService.claim(
+                idempotencyKey,
+                IdempotencyOperation.AUTHORIZE,
+                requestHash
+        );
+
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.COMPLETED) {
+
+            AuthorizePaymentResponse replayedResponse =
+                    idempotencyService.replay(
+                            idempotencyRecord,
+                            AuthorizePaymentResponse.class);
+
+            return ResponseEntity
+                    .status(idempotencyRecord.getHttpStatus())
+                    .body(replayedResponse);
+        }
 
         PaymentReceipt payment = paymentService.authorizePayment(request);
 
         AuthorizePaymentResponse response = toAuthorizePaymentResponse(payment);
+
+        idempotencyService.complete(
+                idempotencyRecord,
+                response,
+                HttpStatus.CREATED.value()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
