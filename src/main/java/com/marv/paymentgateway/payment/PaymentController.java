@@ -63,11 +63,36 @@ public class PaymentController {
 
     @PostMapping("/{paymentReference}/capture")
     public ResponseEntity<CapturePaymentResponse> capture(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @PathVariable UUID paymentReference) {
 
+        String requestHash = requestFingerprintService.forPaymentOperation(paymentReference);
+
+        IdempotencyRecord record = idempotencyService.claim(
+                idempotencyKey,
+                IdempotencyOperation.CAPTURE,
+                requestHash
+        );
+
+        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
+
+            CapturePaymentResponse response =
+                    idempotencyService.replay(record, CapturePaymentResponse.class);
+
+            return ResponseEntity
+                    .status(record.getHttpStatus())
+                    .body(response);
+
+        }
         PaymentReceipt payment = paymentService.capturePayment(paymentReference);
 
         CapturePaymentResponse response = toCapturePaymentResponse(payment);
+
+        idempotencyService.complete(
+                record,
+                response,
+                HttpStatus.OK.value()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.OK)

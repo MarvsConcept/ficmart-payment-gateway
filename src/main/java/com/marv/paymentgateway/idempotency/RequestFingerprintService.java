@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.UUID;
 
 @Service
 public class RequestFingerprintService {
@@ -26,20 +27,28 @@ public class RequestFingerprintService {
                 request.expiryMonth().toString(),
                 request.expiryYear().toString());
 
-        try {
 
+        return sha256(canonicalRequest);
+    }
+
+    public String forPaymentOperation(UUID paymentReference) {
+        return sha256(paymentReference.toString());
+    }
+
+    private String sha256(String value) {
+
+        try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             byte[] hash = digest.digest(
-                    canonicalRequest.getBytes(StandardCharsets.UTF_8)
+                    value.getBytes(StandardCharsets.UTF_8)
             );
 
             return HexFormat.of().formatHex(hash);
-
         } catch (NoSuchAlgorithmException ex) {
-            // SHA-256 is required by the Java platform; absence is a runtime configuration failure.
+            // SHA-256 should always exist in a standard Java runtime.
             throw new IllegalStateException(
-                    "SHA-256 algorithm is available",
+                    "SHA-256 algorithm is unavailable",
                     ex
             );
         }
