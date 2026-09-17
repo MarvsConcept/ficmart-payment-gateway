@@ -139,11 +139,34 @@ public class PaymentController {
 
     @PostMapping("/{paymentReference}/refund")
     public ResponseEntity<RefundPaymentResponse> refund(
+            @RequestHeader("Idempotency-key") String idempotencyKey,
             @PathVariable UUID paymentReference) {
+
+        String requestHash = requestFingerprintService.forPaymentOperation(paymentReference);
+
+        IdempotencyRecord record = idempotencyService.claim(
+                idempotencyKey,
+                IdempotencyOperation.VOID,
+                requestHash);
+
+        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
+
+            RefundPaymentResponse response =
+                    idempotencyService.replay(record, RefundPaymentResponse.class);
+
+            return ResponseEntity
+                    .status(record.getHttpStatus())
+                    .body(response);
+        }
 
         PaymentReceipt payment = paymentService.refundPayment(paymentReference);
 
         RefundPaymentResponse response = toRefundPaymentResponse(payment);
+
+        idempotencyService.complete(
+                record,
+                response,
+                HttpStatus.OK.value());
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -151,7 +174,7 @@ public class PaymentController {
     }
 
     @GetMapping("/orders/{orderId}")
-    public ResponseEntity<PaymentResponse> getPaymentByorderId(
+    public ResponseEntity<PaymentResponse> getPaymentByOrderId(
             @PathVariable String orderId) {
 
         PaymentReceipt payment = paymentService.getPaymentByOrderId(orderId);
