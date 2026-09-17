@@ -102,11 +102,34 @@ public class PaymentController {
 
     @PostMapping("/{paymentReference}/void")
     public ResponseEntity<VoidPaymentResponse> voidPayment(
+            @RequestHeader("Idempotency_key") String idempotencyKey,
             @PathVariable UUID paymentReference) {
+
+        String requestHash = requestFingerprintService.forPaymentOperation(paymentReference);
+
+        IdempotencyRecord record = idempotencyService.claim(
+                idempotencyKey,
+                IdempotencyOperation.VOID,
+                requestHash);
+
+        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
+
+            VoidPaymentResponse response =
+                    idempotencyService.replay(record, VoidPaymentResponse.class);
+
+            return ResponseEntity
+                    .status(record.getHttpStatus())
+                    .body(response);
+        }
 
         PaymentReceipt payment = paymentService.voidPayment(paymentReference);
 
         VoidPaymentResponse response = toVoidPaymentResponse(payment);
+
+        idempotencyService.complete(
+                record,
+                response,
+                HttpStatus.OK.value());
 
         return ResponseEntity
                 .status(HttpStatus.OK)
