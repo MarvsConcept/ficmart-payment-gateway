@@ -24,6 +24,10 @@ public class PaymentReceipt {
     @Column(name = "order_id", nullable = false)
     private String orderId;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(name = "customer_id", nullable = false)
     private String customerId;
 

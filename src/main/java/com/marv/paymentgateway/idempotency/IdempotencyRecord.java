@@ -21,7 +21,9 @@ public class IdempotencyRecord {
     @Column(name = "payment_reference")
     private UUID paymentReference;
 
-
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(name = "idempotency_key", nullable = false, length = 255)
     private String idempotencyKey;

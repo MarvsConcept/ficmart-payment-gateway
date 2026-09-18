@@ -1,0 +1,5 @@
+ALTER TABLE payment_receipts
+ADD COLUMN version BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE idempotency_records
+ADD COLUMN version BIGINT NOT NULL DEFAULT 0;
