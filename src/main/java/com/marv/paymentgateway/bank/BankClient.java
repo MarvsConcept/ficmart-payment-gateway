@@ -101,15 +101,12 @@ public class BankClient {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 return bankCall.get();
-
             } catch (RestClientResponseException ex) {
-
                 if (!ex.getStatusCode().is5xxServerError()) {
                     throw new PermanentBankException(
                             "Bank rejected the request",
                             ex);
                 }
-
                 if (attempt == MAX_ATTEMPTS) {
                     throw new TransientBankException(
                             "Bank failed after retry attempts",
@@ -122,7 +119,6 @@ public class BankClient {
                             ex);
                 }
             }
-
             log.warn(
                     "Transient bank failure on attempt {}/{}. Retrying in {} ms",
                     attempt,
@@ -140,10 +136,8 @@ public class BankClient {
     private void sleep( long delayMs){
         try {
             Thread.sleep(delayMs);
-
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-
             throw new TransientBankException(
                     "Bank retry was interrupted",
                     ex);

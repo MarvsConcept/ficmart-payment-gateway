@@ -37,7 +37,7 @@ public class PaymentService {
 
     public PaymentReceipt authorizePendingPayment(
             PaymentReceipt payment,
-        AuthorizePaymentRequest request) {
+            AuthorizePaymentRequest request) {
 
         // reject an invalid state before calling the bank
         payment.ensureCanBeAuthorized();
