@@ -18,6 +18,11 @@ public class IdempotencyRecord {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "payment_reference")
+    private UUID paymentReference;
+
+
+
     @Column(name = "idempotency_key", nullable = false, length = 255)
     private String idempotencyKey;
 
@@ -44,6 +49,31 @@ public class IdempotencyRecord {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+
+    public void attachPayment(UUID paymentReference) {
+        if (this.paymentReference != null) {
+            throw new IllegalStateException("Idempotency record already has a payment");
+        }
+
+        this.paymentReference = paymentReference;
+        this.createdAt = OffsetDateTime.now();
+    }
+
+    public void markRetryable() {
+        this.status = IdempotencyStatus.RETRYABLE;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+
+    public void markInProgress() {
+        if (status != IdempotencyStatus.RETRYABLE) {
+            throw new IllegalStateException("Only retryable requests can be resumed");
+        }
+
+        this.status = IdempotencyStatus.IN_PROGRESS;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public static IdempotencyRecord start(
             String idempotencyKey,
             IdempotencyOperation operation,
@@ -69,4 +99,5 @@ public class IdempotencyRecord {
         this.status = IdempotencyStatus.COMPLETED;
         this.updatedAt = OffsetDateTime.now();
     }
+
 }

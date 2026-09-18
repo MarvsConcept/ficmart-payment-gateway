@@ -92,9 +92,7 @@ public class PaymentReceipt {
             String authorizationId,
             OffsetDateTime authorizedAt) {
 
-        if (status != PaymentStatus.PENDING) {
-            throw new InvalidPaymentStateException("Only pending payments can be authorized");
-        }
+        ensureCanBeAuthorized();
 
         this.authorizationId = authorizationId;
         this.authorizedAt = authorizedAt;
@@ -136,6 +134,12 @@ public class PaymentReceipt {
         this.refundedAt = refundedAt;
         this.status = PaymentStatus.REFUNDED;
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public void ensureCanBeAuthorized() {
+        if (status != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStateException("Only pending payments can be authorized");
+        }
     }
 
     public void ensureCanBeCaptured() {

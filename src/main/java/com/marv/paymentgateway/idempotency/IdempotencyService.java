@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class IdempotencyService {
@@ -53,6 +55,10 @@ public class IdempotencyService {
         if (record.getStatus() == IdempotencyStatus.IN_PROGRESS) {
             throw new IdempotencyConflictException("A request with this idempotency key is already in progress");
         }
+        if (record.getStatus() == IdempotencyStatus.RETRYABLE) {
+            record.markInProgress();
+            return repository.save(record);
+        }
 
         return record;
     }
@@ -89,4 +95,17 @@ public class IdempotencyService {
         }
     }
 
+
+    public void attachPayment(
+            IdempotencyRecord record,
+            UUID paymentReference) {
+
+        record.attachPayment(paymentReference);
+        repository.save(record);
+    }
+
+    public void markRetryable(IdempotencyRecord record) {
+        record.markRetryable();
+        repository.save(record);
+    }
 }

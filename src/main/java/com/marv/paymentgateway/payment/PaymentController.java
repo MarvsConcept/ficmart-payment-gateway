@@ -1,5 +1,6 @@
 package com.marv.paymentgateway.payment;
 
+import com.marv.paymentgateway.bank.exception.TransientBankException;
 import com.marv.paymentgateway.idempotency.*;
 import com.marv.paymentgateway.payment.dto.*;
 import jakarta.validation.Valid;
@@ -46,19 +47,36 @@ public class PaymentController {
                     .body(replayedResponse);
         }
 
-        PaymentReceipt payment = paymentService.authorizePayment(request);
+        PaymentReceipt payment; // = paymentService.authorizePayment(request);
+        if (idempotencyRecord.getPaymentReference() == null) {
 
-        AuthorizePaymentResponse response = toAuthorizePaymentResponse(payment);
+            payment = paymentService.createPendingPayment(request);
 
-        idempotencyService.complete(
-                idempotencyRecord,
-                response,
-                HttpStatus.CREATED.value()
-        );
+            // The idempotency key must remain tied to this same payment on every retry.
+            idempotencyService.attachPayment(idempotencyRecord, payment.getPaymentReference());
+        } else {
+            payment = paymentService.getPayment(
+                    idempotencyRecord.getPaymentReference());
+        }
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        try {
+            PaymentReceipt authorizedPayment =
+                    paymentService.authorizePendingPayment(payment, request);
+
+            AuthorizePaymentResponse response = toAuthorizePaymentResponse(payment);
+
+            idempotencyService.complete(
+                    idempotencyRecord,
+                    response,
+                    HttpStatus.CREATED.value());
+
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(response);
+        } catch (TransientBankException ex) {
+            idempotencyService.markRetryable(idempotencyRecord);
+            throw ex;
+        }
     }
 
     @PostMapping("/{paymentReference}/capture")

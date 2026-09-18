@@ -2,6 +2,7 @@ package com.marv.paymentgateway.payment;
 
 import com.marv.paymentgateway.bank.BankClient;
 import com.marv.paymentgateway.bank.dto.*;
+import com.marv.paymentgateway.idempotency.IdempotencyRecord;
 import com.marv.paymentgateway.payment.dto.AuthorizePaymentRequest;
 import com.marv.paymentgateway.payment.exception.PaymentNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -17,17 +18,29 @@ public class PaymentService {
     private final PaymentReceiptRepository paymentReceiptRepository;
     private final BankClient bankClient;
 
-    public PaymentReceipt authorizePayment(
+    public PaymentReceipt createPendingPayment(
             AuthorizePaymentRequest request) {
 
         PaymentReceipt payment = PaymentReceipt.createPending(
                 request.orderId(),
                 request.customerId(),
-                request.amount()
-        );
+                request.amount());
 
         // Save before calling the bank to leave pending record that can be reconciled
-        payment = paymentReceiptRepository.save(payment);
+        return paymentReceiptRepository.save(payment);
+    }
+
+    public PaymentReceipt getPayment(UUID paymentReference) {
+        return paymentReceiptRepository.findById(paymentReference)
+                .orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + paymentReference));
+    }
+
+    public PaymentReceipt authorizePendingPayment(
+            PaymentReceipt payment,
+        AuthorizePaymentRequest request) {
+
+        // reject an invalid state before calling the bank
+        payment.ensureCanBeAuthorized();
 
         // Generate idempotency key with the payment reference
         String bankIdempotencyKey = "authorize:" + payment.getPaymentReference();
@@ -138,7 +151,6 @@ public class PaymentService {
                 request.expiryYear()
         );
     }
-
 
     public PaymentReceipt getPaymentByOrderId(String orderId) {
 
