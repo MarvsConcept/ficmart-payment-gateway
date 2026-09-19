@@ -1,6 +1,8 @@
 package com.marv.paymentgateway.idempotency;
 
+import com.marv.paymentgateway.common.dto.ApiErrorResponse;
 import com.marv.paymentgateway.idempotency.exception.IdempotencyConflictException;
+import com.marv.paymentgateway.idempotency.exception.IdempotencyFailureReplayException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -74,9 +76,22 @@ public class IdempotencyService {
             record.complete(responseBody, httpStatus);
             repository.save(record);
         } catch (JacksonException ex) {
-            throw new IllegalStateException(
-                    "Failed to store idempotent response",
-                    ex);
+            throw new IllegalStateException("Failed to store idempotent response", ex);
+        }
+    }
+
+    public void fail(
+            IdempotencyRecord record,
+            Object response,
+            int httpStatus) {
+
+        try {
+            String responseBody = jsonMapper.writeValueAsString(response);
+
+            record.fail(responseBody, httpStatus);
+            repository.save(record);
+        } catch (JacksonException ex) {
+            throw new IllegalStateException("Failed to store idempotent response", ex);
         }
     }
 
@@ -89,12 +104,18 @@ public class IdempotencyService {
                     record.getResponseBody(),
                     responseType);
         } catch (JacksonException ex) {
-            throw new IllegalStateException(
-                    "Failed to replay idempotent response",
-                    ex);
+            throw new IllegalStateException("Failed to replay idempotent response", ex);
         }
     }
 
+    public void replayFailure(IdempotencyRecord record) {
+
+        ApiErrorResponse response = replay(
+                record, ApiErrorResponse.class);
+
+        throw new IdempotencyFailureReplayException(
+                record.getHttpStatus(), response);
+    }
 
     public void attachPayment(
             IdempotencyRecord record,

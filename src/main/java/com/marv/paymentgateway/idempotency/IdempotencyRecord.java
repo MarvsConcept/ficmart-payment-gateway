@@ -102,4 +102,11 @@ public class IdempotencyRecord {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    public void fail(String responseBody, int httpStatus) {
+
+        this.responseBody = responseBody;
+        this.httpStatus = httpStatus;
+        this.status = IdempotencyStatus.FAILED;
+        this.updatedAt = OffsetDateTime.now();
+    }
 }

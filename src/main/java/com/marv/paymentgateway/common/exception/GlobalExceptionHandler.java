@@ -1,7 +1,9 @@
 package com.marv.paymentgateway.common.exception;
 
+import com.marv.paymentgateway.bank.exception.PermanentBankException;
 import com.marv.paymentgateway.common.dto.ApiErrorResponse;
 import com.marv.paymentgateway.idempotency.exception.IdempotencyConflictException;
+import com.marv.paymentgateway.idempotency.exception.IdempotencyFailureReplayException;
 import com.marv.paymentgateway.payment.exception.InvalidPaymentStateException;
 import com.marv.paymentgateway.payment.exception.PaymentNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -72,4 +74,27 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(IdempotencyFailureReplayException.class)
+    public ResponseEntity<ApiErrorResponse> handleIdempotentFailureReplay(
+            IdempotencyFailureReplayException ex) {
+
+        return ResponseEntity
+                .status(ex.getStatusCode())
+                .body(ex.getResponse());
+    }
+
+    @ExceptionHandler(PermanentBankException.class)
+    public ResponseEntity<ApiErrorResponse> handlePermanentBankFailure(
+            PermanentBankException ex
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                ex.getErrorCode(),
+                ex.getBankMessage(),
+                OffsetDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(ex.getStatusCode())
+                .body(response);
+    }
 }

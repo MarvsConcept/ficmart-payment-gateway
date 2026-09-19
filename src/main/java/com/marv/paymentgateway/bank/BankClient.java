@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.function.Supplier;
 
@@ -24,14 +26,18 @@ public class BankClient {
     private static final long INITIAL_BACKOFF_MS  = 250;
 
     private final RestClient restClient;
+    private final JsonMapper jsonMapper;
 
     public BankClient(
             RestClient.Builder restClientBuilder,
-            @Value("${bank.base-url}") String bankBaseUrl)
+            @Value("${bank.base-url}") String bankBaseUrl,
+            JsonMapper jsonMapper)
     {
         this.restClient = restClientBuilder
                 .baseUrl(bankBaseUrl)
                 .build();
+
+        this.jsonMapper = jsonMapper;
     }
 
     public BankAuthorizationResponse authorize(
@@ -103,9 +109,7 @@ public class BankClient {
                 return bankCall.get();
             } catch (RestClientResponseException ex) {
                 if (!ex.getStatusCode().is5xxServerError()) {
-                    throw new PermanentBankException(
-                            "Bank rejected the request",
-                            ex);
+                    throw toPermanentBankException(ex);
                 }
                 if (attempt == MAX_ATTEMPTS) {
                     throw new TransientBankException(
@@ -144,4 +148,25 @@ public class BankClient {
         }
     }
 
+    private PermanentBankException toPermanentBankException(RestClientResponseException ex) {
+
+        try {
+            BankErrorResponse error = jsonMapper.readValue(
+                    ex.getResponseBodyAsString(),
+                    BankErrorResponse.class
+            );
+
+            return new PermanentBankException(
+                    ex.getStatusCode().value(),
+                    error.error(),
+                    error.message(),
+                    ex);
+        } catch (JacksonException parseException) {
+            return new PermanentBankException(
+                    ex.getStatusCode().value(),
+                    "bank_rejected_request",
+                    "Bank rejected the request",
+                    ex);
+        }
+    }
 }

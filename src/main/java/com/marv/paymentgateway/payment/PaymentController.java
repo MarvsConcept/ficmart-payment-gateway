@@ -1,6 +1,8 @@
 package com.marv.paymentgateway.payment;
 
+import com.marv.paymentgateway.bank.exception.PermanentBankException;
 import com.marv.paymentgateway.bank.exception.TransientBankException;
+import com.marv.paymentgateway.common.dto.ApiErrorResponse;
 import com.marv.paymentgateway.idempotency.*;
 import com.marv.paymentgateway.payment.dto.*;
 import jakarta.validation.Valid;
@@ -38,13 +40,14 @@ public class PaymentController {
         if (idempotencyRecord.getStatus() == IdempotencyStatus.COMPLETED) {
 
             AuthorizePaymentResponse replayedResponse =
-                    idempotencyService.replay(
-                            idempotencyRecord,
-                            AuthorizePaymentResponse.class);
-
+                    idempotencyService.replay(idempotencyRecord, AuthorizePaymentResponse.class);
             return ResponseEntity
                     .status(idempotencyRecord.getHttpStatus())
                     .body(replayedResponse);
+        }
+
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.FAILED) {
+            idempotencyService.replayFailure(idempotencyRecord);
         }
 
         PaymentReceipt payment; // = paymentService.authorizePayment(request);
@@ -76,6 +79,20 @@ public class PaymentController {
         } catch (TransientBankException ex) {
             idempotencyService.markRetryable(idempotencyRecord);
             throw ex;
+        } catch (PermanentBankException ex) {
+            ApiErrorResponse errorResponse = new ApiErrorResponse(
+                    ex.getErrorCode(),
+                    ex.getMessage(),
+                    OffsetDateTime.now());
+
+            // Permanent failures must replay rather than re-run the bank operation.
+            idempotencyService.fail(
+                    idempotencyRecord,
+                    errorResponse,
+                    ex.getStatusCode());
+
+            throw ex;
+
         }
     }
 
@@ -86,36 +103,58 @@ public class PaymentController {
 
         String requestHash = requestFingerprintService.forPaymentOperation(paymentReference);
 
-        IdempotencyRecord record = idempotencyService.claim(
+        IdempotencyRecord idempotencyRecord = idempotencyService.claim(
                 idempotencyKey,
                 IdempotencyOperation.CAPTURE,
                 requestHash
         );
 
-        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
-
-            CapturePaymentResponse response =
-                    idempotencyService.replay(record, CapturePaymentResponse.class);
-
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.COMPLETED) {
+            CapturePaymentResponse replayedResponse =
+                    idempotencyService.replay(idempotencyRecord, CapturePaymentResponse.class);
             return ResponseEntity
-                    .status(record.getHttpStatus())
-                    .body(response);
-
+                    .status(idempotencyRecord.getHttpStatus())
+                    .body(replayedResponse);
         }
-        PaymentReceipt payment = paymentService.capturePayment(paymentReference);
 
-        CapturePaymentResponse response = toCapturePaymentResponse(payment);
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.FAILED) {
+            idempotencyService.replayFailure(idempotencyRecord);
+        }
 
-        idempotencyService.complete(
-                record,
+        try {
+            PaymentReceipt payment = paymentService.capturePayment(paymentReference);
+
+            CapturePaymentResponse response = toCapturePaymentResponse(payment);
+
+            idempotencyService.complete(
+                idempotencyRecord,
                 response,
                 HttpStatus.OK.value()
-        );
+            );
 
-        return ResponseEntity
+            return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(response);
 
+        } catch (TransientBankException ex) {
+
+            // A temporary bank failure can safely resume with the same operation key.
+            idempotencyService.markRetryable(idempotencyRecord);
+            throw ex;
+        } catch (PermanentBankException ex) {
+            ApiErrorResponse errorResponse = new ApiErrorResponse(
+                    ex.getErrorCode(),
+                    ex.getMessage(),
+                    OffsetDateTime.now());
+
+            // Permanent failures must replay rather than calling the bank operation again.
+            idempotencyService.fail(
+                    idempotencyRecord,
+                    errorResponse,
+                    ex.getStatusCode());
+
+            throw ex;
+        }
     }
 
     @PostMapping("/{paymentReference}/void")
@@ -125,34 +164,57 @@ public class PaymentController {
 
         String requestHash = requestFingerprintService.forPaymentOperation(paymentReference);
 
-        IdempotencyRecord record = idempotencyService.claim(
+        IdempotencyRecord idempotencyRecord = idempotencyService.claim(
                 idempotencyKey,
                 IdempotencyOperation.VOID,
                 requestHash);
 
-        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
-
-            VoidPaymentResponse response =
-                    idempotencyService.replay(record, VoidPaymentResponse.class);
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.COMPLETED) {
+            VoidPaymentResponse replayedResponse =
+                    idempotencyService.replay(idempotencyRecord, VoidPaymentResponse.class);
 
             return ResponseEntity
-                    .status(record.getHttpStatus())
-                    .body(response);
+                    .status(idempotencyRecord.getHttpStatus())
+                    .body(replayedResponse);
+        }
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.FAILED) {
+            idempotencyService.replayFailure(idempotencyRecord);
         }
 
-        PaymentReceipt payment = paymentService.voidPayment(paymentReference);
+        try {
 
-        VoidPaymentResponse response = toVoidPaymentResponse(payment);
+            PaymentReceipt payment = paymentService.voidPayment(paymentReference);
 
-        idempotencyService.complete(
-                record,
-                response,
-                HttpStatus.OK.value());
+            VoidPaymentResponse response = toVoidPaymentResponse(payment);
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(response);
+            idempotencyService.complete(
+                    idempotencyRecord,
+                    response,
+                    HttpStatus.OK.value());
 
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(response);
+
+        } catch (TransientBankException ex) {
+
+            // A temporary bank failure can safely resume with the same operation key.
+            idempotencyService.markRetryable(idempotencyRecord);
+            throw ex;
+        } catch (PermanentBankException ex) {
+            ApiErrorResponse errorResponse = new ApiErrorResponse(
+                    ex.getErrorCode(),
+                    ex.getMessage(),
+                    OffsetDateTime.now());
+
+            // Permanent failures must replay rather than calling the bank operation again.
+            idempotencyService.fail(
+                    idempotencyRecord,
+                    errorResponse,
+                    ex.getStatusCode());
+
+            throw ex;
+        }
     }
 
     @PostMapping("/{paymentReference}/refund")
@@ -162,33 +224,55 @@ public class PaymentController {
 
         String requestHash = requestFingerprintService.forPaymentOperation(paymentReference);
 
-        IdempotencyRecord record = idempotencyService.claim(
+        IdempotencyRecord idempotencyRecord = idempotencyService.claim(
                 idempotencyKey,
                 IdempotencyOperation.VOID,
                 requestHash);
 
-        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
-
-            RefundPaymentResponse response =
-                    idempotencyService.replay(record, RefundPaymentResponse.class);
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.COMPLETED) {
+            RefundPaymentResponse replayedResponse =
+                    idempotencyService.replay(idempotencyRecord, RefundPaymentResponse.class);
 
             return ResponseEntity
-                    .status(record.getHttpStatus())
-                    .body(response);
+                    .status(idempotencyRecord.getHttpStatus())
+                    .body(replayedResponse);
+        }
+        if (idempotencyRecord.getStatus() == IdempotencyStatus.FAILED) {
+            idempotencyService.replayFailure(idempotencyRecord);
         }
 
-        PaymentReceipt payment = paymentService.refundPayment(paymentReference);
+        try {
+            PaymentReceipt payment = paymentService.refundPayment(paymentReference);
 
-        RefundPaymentResponse response = toRefundPaymentResponse(payment);
+            RefundPaymentResponse response = toRefundPaymentResponse(payment);
 
-        idempotencyService.complete(
-                record,
-                response,
-                HttpStatus.OK.value());
+            idempotencyService.complete(
+                    idempotencyRecord,
+                    response,
+                    HttpStatus.OK.value());
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(response);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(response);
+        } catch (TransientBankException ex) {
+
+            // A temporary bank failure can safely resume with the same operation key.
+            idempotencyService.markRetryable(idempotencyRecord);
+            throw ex;
+        } catch (PermanentBankException ex) {
+            ApiErrorResponse errorResponse = new ApiErrorResponse(
+                    ex.getErrorCode(),
+                    ex.getMessage(),
+                    OffsetDateTime.now());
+
+            // Permanent failures must replay rather than calling the bank operation again.
+            idempotencyService.fail(
+                    idempotencyRecord,
+                    errorResponse,
+                    ex.getStatusCode());
+
+            throw ex;
+        }
     }
 
     @GetMapping("/orders/{orderId}")

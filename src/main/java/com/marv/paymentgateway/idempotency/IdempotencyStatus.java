@@ -4,5 +4,6 @@ public enum IdempotencyStatus {
 
     IN_PROGRESS,
     RETRYABLE,
-    COMPLETED
+    COMPLETED,
+    FAILED
 }

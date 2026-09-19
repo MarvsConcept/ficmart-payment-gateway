@@ -6,5 +6,5 @@ public enum PaymentStatus {
     AUTHORIZED,
     CAPTURED,
     VOIDED,
-    REFUNDED
+    REFUNDED,
 }
