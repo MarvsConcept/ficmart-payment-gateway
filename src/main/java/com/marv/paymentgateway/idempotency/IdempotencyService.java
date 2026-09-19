@@ -3,20 +3,34 @@ package com.marv.paymentgateway.idempotency;
 import com.marv.paymentgateway.common.dto.ApiErrorResponse;
 import com.marv.paymentgateway.idempotency.exception.IdempotencyConflictException;
 import com.marv.paymentgateway.idempotency.exception.IdempotencyFailureReplayException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
+
 public class IdempotencyService {
 
     private final IdempotencyRecordRepository repository;
     private final JsonMapper jsonMapper;
+    private final Duration inProgressTimeout;
+    private IdempotencyRecord record;
+
+    public IdempotencyService(
+            IdempotencyRecordRepository repository,
+            JsonMapper jsonMapper,
+            @Value("${idempotency.in-progress-timeout}") Duration inProgressTimeout
+    ) {
+        this.repository = repository;
+        this.jsonMapper = jsonMapper;
+        this.inProgressTimeout = inProgressTimeout;
+    }
 
     public IdempotencyRecord claim(
             String key,
@@ -55,7 +69,17 @@ public class IdempotencyService {
                     "Idempotency key was already used with a different request");
         }
         if (record.getStatus() == IdempotencyStatus.IN_PROGRESS) {
-            throw new IdempotencyConflictException("A request with this idempotency key is already in progress");
+
+            OffsetDateTime staleBefore = OffsetDateTime.now().minus(inProgressTimeout);
+
+            if (record.getUpdatedAt().isAfter(staleBefore)) {
+                throw new IdempotencyConflictException(
+                        "A request with this idempotency key is already in progress");
+            }
+            // A stale request can be reclaimed after it's previous worker disappears.
+            record.reclaim();
+
+            return repository.saveAndFlush(record);
         }
         if (record.getStatus() == IdempotencyStatus.RETRYABLE) {
             record.markInProgress();
@@ -126,7 +150,8 @@ public class IdempotencyService {
     }
 
     public void markRetryable(IdempotencyRecord record) {
+        this.record = record;
         record.markRetryable();
-        repository.save(record);
+        repository.saveAndFlush(record);
     }
 }

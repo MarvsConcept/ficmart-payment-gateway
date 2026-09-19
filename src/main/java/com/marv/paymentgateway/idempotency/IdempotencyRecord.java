@@ -109,4 +109,13 @@ public class IdempotencyRecord {
         this.status = IdempotencyStatus.FAILED;
         this.updatedAt = OffsetDateTime.now();
     }
+
+    public void reclaim() {
+
+        if (status != IdempotencyStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Only in-progress requests can be reclaimed");
+        }
+
+        this.updatedAt = OffsetDateTime.now();
+    }
 }
