@@ -140,6 +140,15 @@ public class PaymentReceipt {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    public void markFailed() {
+        if (status != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStateException("Only pending payments can fail authorization");
+        }
+
+        this.status = PaymentStatus.FAILED;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public void ensureCanBeAuthorized() {
         if (status != PaymentStatus.PENDING) {
             throw new InvalidPaymentStateException("Only pending payments can be authorized");

@@ -140,6 +140,10 @@ public class PaymentService {
 
     }
 
+    public PaymentReceipt save(PaymentReceipt payment) {
+        return paymentReceiptRepository.save(payment);
+    }
+
     private BankAuthorizationRequest toBankAuthorizationRequest(
             AuthorizePaymentRequest request) {
 

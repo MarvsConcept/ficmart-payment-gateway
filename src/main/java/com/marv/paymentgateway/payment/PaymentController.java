@@ -80,6 +80,10 @@ public class PaymentController {
             idempotencyService.markRetryable(idempotencyRecord);
             throw ex;
         } catch (PermanentBankException ex) {
+
+            payment.markFailed();
+            paymentService.save(payment);
+
             ApiErrorResponse errorResponse = new ApiErrorResponse(
                     ex.getErrorCode(),
                     ex.getMessage(),
