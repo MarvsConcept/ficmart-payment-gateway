@@ -17,18 +17,7 @@ public class PaymentService {
 
     private final PaymentReceiptRepository paymentReceiptRepository;
     private final BankClient bankClient;
-
-    public PaymentReceipt createPendingPayment(
-            AuthorizePaymentRequest request) {
-
-        PaymentReceipt payment = PaymentReceipt.createPending(
-                request.orderId(),
-                request.customerId(),
-                request.amount());
-
-        // Save before calling the bank to leave pending record that can be reconciled
-        return paymentReceiptRepository.save(payment);
-    }
+    
 
     public PaymentReceipt getPayment(UUID paymentReference) {
         return paymentReceiptRepository.findById(paymentReference)

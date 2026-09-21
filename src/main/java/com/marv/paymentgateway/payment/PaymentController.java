@@ -23,6 +23,7 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final IdempotencyService idempotencyService;
     private final RequestFingerprintService requestFingerprintService;
+    private final PaymentInitializationService paymentInitializationService;
 
     @PostMapping("/authorize")
     public ResponseEntity<AuthorizePaymentResponse> authorize(
@@ -53,10 +54,8 @@ public class PaymentController {
         PaymentReceipt payment; // = paymentService.authorizePayment(request);
         if (idempotencyRecord.getPaymentReference() == null) {
 
-            payment = paymentService.createPendingPayment(request);
+            payment = paymentInitializationService.createPendingAndAttach(request, idempotencyRecord);
 
-            // The idempotency key must remain tied to this same payment on every retry.
-            idempotencyService.attachPayment(idempotencyRecord, payment.getPaymentReference());
         } else {
             payment = paymentService.getPayment(
                     idempotencyRecord.getPaymentReference());

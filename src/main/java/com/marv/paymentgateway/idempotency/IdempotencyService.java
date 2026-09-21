@@ -141,14 +141,6 @@ public class IdempotencyService {
                 record.getHttpStatus(), response);
     }
 
-    public void attachPayment(
-            IdempotencyRecord record,
-            UUID paymentReference) {
-
-        record.attachPayment(paymentReference);
-        repository.save(record);
-    }
-
     public void markRetryable(IdempotencyRecord record) {
         this.record = record;
         record.markRetryable();
