@@ -1,6 +1,7 @@
 package com.marv.paymentgateway.common.exception;
 
 import com.marv.paymentgateway.bank.exception.PermanentBankException;
+import com.marv.paymentgateway.bank.exception.TransientBankException;
 import com.marv.paymentgateway.common.dto.ApiErrorResponse;
 import com.marv.paymentgateway.idempotency.exception.IdempotencyConflictException;
 import com.marv.paymentgateway.idempotency.exception.IdempotencyFailureReplayException;
@@ -95,6 +96,21 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(ex.getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(TransientBankException.class)
+    public ResponseEntity<ApiErrorResponse> handleTransientBankFailure(
+            TransientBankException ex
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                "bank_unavailable",
+                "The bank is temporarily unavailable. Retry the request.",
+                OffsetDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(response);
     }
 }

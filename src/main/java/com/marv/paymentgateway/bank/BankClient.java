@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import static java.lang.Thread.sleep;
@@ -123,11 +124,14 @@ public class BankClient {
                             ex);
                 }
             }
+
+            long delayMs = withJitter(backoffMs);
+
             log.warn(
                     "Transient bank failure on attempt {}/{}. Retrying in {} ms",
                     attempt,
                     MAX_ATTEMPTS,
-                    backoffMs
+                    delayMs
             );
             // Back off before retrying so we do not hammer a struggling bank.
             sleep(backoffMs);
@@ -135,6 +139,14 @@ public class BankClient {
         }
 
         throw new IllegalStateException("Unreachable retry state");
+    }
+
+    private long withJitter(long backoffMs) {
+
+        long halfBackoff = backoffMs/2;
+        return halfBackoff
+                + ThreadLocalRandom.current()
+                .nextLong(halfBackoff + 1);
     }
 
     private void sleep( long delayMs){
